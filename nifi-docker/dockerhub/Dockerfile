@@ -16,59 +16,34 @@
 # under the License.
 #
 
-FROM openjdk:8-jre
-LABEL maintainer="Apache NiFi <dev@nifi.apache.org>"
-LABEL site="https://nifi.apache.org"
+FROM nrydevops/nifi
+LABEL maintainer "nrydevops rybruscoe@gmail.com"
 
-ARG UID=1000
-ARG GID=1000
-ARG NIFI_VERSION=1.8.0
-ARG MIRROR=https://archive.apache.org/dist
+USER root
 
-ENV NIFI_BASE_DIR /opt/nifi
-ENV NIFI_HOME=${NIFI_BASE_DIR}/nifi-${NIFI_VERSION} \
-    NIFI_BINARY_URL=/nifi/${NIFI_VERSION}/nifi-${NIFI_VERSION}-bin.tar.gz
-ENV NIFI_PID_DIR=${NIFI_HOME}/run
-ENV NIFI_LOG_DIR=${NIFI_HOME}/logs
+#Install Java JDK
+RUN mkdir -p /opt/java
+RUN apt-get update -y
+RUN apt-get install default-jdk -y
 
-ADD sh/ ${NIFI_BASE_DIR}/scripts/
+#Install Maven
+RUN apt-get install maven -y
 
-# Setup NiFi user and create necessary directories
-RUN groupadd -g ${GID} nifi || groupmod -n nifi `getent group ${GID} | cut -d: -f1` \
-    && useradd --shell /bin/bash -u ${UID} -g ${GID} -m nifi \
-    && mkdir -p ${NIFI_HOME}/conf/templates \
-    && mkdir -p $NIFI_BASE_DIR/data \
-    && mkdir -p $NIFI_BASE_DIR/flowfile_repository \
-    && mkdir -p $NIFI_BASE_DIR/content_repository \
-    && mkdir -p $NIFI_BASE_DIR/provenance_repository \
-    && mkdir -p $NIFI_LOG_DIR \
-    && chown -R nifi:nifi ${NIFI_BASE_DIR} \
-    && apt-get update \
-    && apt-get install -y jq xmlstarlet procps
+#Install Geomesa NiFi
+RUN apt install git -y
+RUN git clone --branch geomesa-nifi-2.0.2 https://github.com/geomesa/geomesa-nifi.git
 
-USER nifi
+#Build and Install the Geomesa NiFi Processors
+WORKDIR geomesa-nifi
+RUN mvn clean install
+RUN wget -O geomesa-tools_2.11-2.0.2-data.jar http://search.maven.org/remotecontent?filepath=org/locationtech/geomesa/geomesa-tools_2.11/2.0.2/geomesa-tools_2.11-2.0.2-data.jar
+RUN cp /opt/nifi/nifi-1.6.0/geomesa-nifi/geomesa-nifi-nar/target/geomesa-nifi-nar-2.0.2-SNAPSHOT.nar /opt/nifi/nifi-1.6.0/lib/
 
-# Download, validate, and expand Apache NiFi binary.
-RUN curl -fSL ${MIRROR}/${NIFI_BINARY_URL} -o ${NIFI_BASE_DIR}/nifi-${NIFI_VERSION}-bin.tar.gz \
-    && echo "$(curl https://archive.apache.org/dist/${NIFI_BINARY_URL}.sha256) *${NIFI_BASE_DIR}/nifi-${NIFI_VERSION}-bin.tar.gz" | sha256sum -c - \
-    && tar -xvzf ${NIFI_BASE_DIR}/nifi-${NIFI_VERSION}-bin.tar.gz -C ${NIFI_BASE_DIR} \
-    && rm ${NIFI_BASE_DIR}/nifi-${NIFI_VERSION}-bin.tar.gz
+# Web HTTP Port & Remote Site-to-Site Ports
+EXPOSE 8080 8181
 
-# Clear nifi-env.sh in favour of configuring all environment variables in the Dockerfile
-RUN echo "#!/bin/sh\n" > $NIFI_HOME/bin/nifi-env.sh
+WORKDIR $NIFI_HOME
 
-# Web HTTP(s) & Socket Site-to-Site Ports
-EXPOSE 8080 8443 10000
-
-WORKDIR ${NIFI_HOME}
-
-# Apply configuration and start NiFi
-#
-# We need to use the exec form to avoid running our command in a subshell and omitting signals,
-# thus being unable to shut down gracefully:
-# https://docs.docker.com/engine/reference/builder/#entrypoint
-#
-# Also we need to use relative path, because the exec form does not invoke a command shell,
-# thus normal shell processing does not happen:
-# https://docs.docker.com/engine/reference/builder/#exec-form-entrypoint-example
-ENTRYPOINT ["../scripts/start.sh"]
+# Startup NiFi
+ENTRYPOINT ["bin/nifi.sh"]
+CMD ["run"]
