@@ -37,7 +37,7 @@ RUN git clone --branch geomesa-nifi-2.0.2 https://github.com/geomesa/geomesa-nif
 WORKDIR geomesa-nifi
 RUN mvn clean install
 RUN wget -O geomesa-tools_2.11-2.0.2-data.jar http://search.maven.org/remotecontent?filepath=org/locationtech/geomesa/geomesa-tools_2.11/2.0.2/geomesa-tools_2.11-2.0.2-data.jar
-RUN cp /opt/nifi/nifi-1.6.0/geomesa-nifi/geomesa-nifi-nar/target/geomesa-nifi-nar-2.0.2-SNAPSHOT.nar /opt/nifi/nifi-1.6.0/lib/
+RUN cp /opt/nifi/nifi-1.6.0/geomesa-nifi/geomesa-nifi-nar/target/geomesa-nifi-nar-2.0.2.nar /opt/nifi/nifi-1.6.0/lib/
 
 # Web HTTP Port & Remote Site-to-Site Ports
 EXPOSE 8080 8181
