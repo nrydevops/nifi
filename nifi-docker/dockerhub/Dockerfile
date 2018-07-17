@@ -14,7 +14,6 @@
 # KIND, either express or implied. See the License for the
 # specific language governing permissions and limitations
 # under the License.
-#
 
 FROM nrydevops/nifi
 LABEL maintainer "nrydevops rybruscoe@gmail.com"
@@ -22,7 +21,7 @@ LABEL maintainer "nrydevops rybruscoe@gmail.com"
 USER root
 
 #Install Java JDK
-RUN mkdir -p /opt/java
+RUN mkdir -p /opt/java/
 RUN apt-get update -y
 RUN apt-get install default-jdk -y
 
@@ -43,6 +42,8 @@ RUN cp /opt/nifi/nifi-1.6.0/geomesa-nifi/geomesa-nifi-nar/target/geomesa-nifi-na
 EXPOSE 8080 8181
 
 WORKDIR $NIFI_HOME
+
+USER nifi
 
 # Startup NiFi
 ENTRYPOINT ["bin/nifi.sh"]
